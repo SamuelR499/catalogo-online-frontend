@@ -25,3 +25,12 @@ body {
     text-wrap: balance;
   }
 }
+
+.produto__img {
+  transition: transform 0.3s ease; /* Transição suave */
+}
+
+.produto__img:hover {
+  transform: scale(1.2); /* Aumenta a imagem em 20% */
+  z-index: 10; /* Coloca a imagem em cima de outros elementos */
+}
