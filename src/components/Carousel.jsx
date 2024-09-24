@@ -137,7 +137,7 @@ export default function Carousel() {
                   produto.imgs.length > 0 &&
                   currentImages[index] !== undefined
                     ? produto.imgs[currentImages[index]]
-                    : "default-image.jpg" // Imagem padrão
+                    : "/img/default-image.jpg" // Imagem padrão
                 }
                 alt={produto.nome || "Imagem do Produto"}
                 onClick={() =>
