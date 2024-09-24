@@ -1,77 +1,53 @@
-// src/components/Carousel.jsx
 "use client"; // Torna este componente um Client Component
 
-import { useState } from "react";
-
-// ProdutoFactory para criar produtos
-class ProdutoFactory {
-  constructor(nome, imgs, info) {
-    this.nome = nome;
-    this.imgs = imgs; // Agora é um array de imagens
-    this.info = info; // Informações do produto
-  }
-}
-
-// Produtos com várias imagens e informações
-const produto1 = new ProdutoFactory(
-  "WHEY 100% LATA 450g - SABOR MORANGO",
-  ["/img/p1.png", "/img/p2.png"],
-  {
-    categoria: "PROTEÍNA",
-    EAN: "7899598016134",
-    CEST: "123456",
-    PESO: "450g",
-    VALIDADE: "18 meses",
-    DUN: "DUN001",
-    EMBALAGEM: "LATA",
-    CLASSIFICACAO_FISCAL: "2106.90.30",
-    DIMENSOES_EMB: "11×20×11 cm",
-    CAIXA_EMBARQUE: "20×20 cm",
-    QUANT_POR_CAIXA: 4,
-    CAIXA_POR_PALLET: 200,
-  }
-);
-
-const produto2 = new ProdutoFactory(
-  "OUTRO PRODUTO",
-  ["/img/p1.png", "/img/p2.png"],
-  {
-    categoria: "OUTRA CATEGORIA",
-    EAN: "7899999999999",
-    CEST: "654321",
-    PESO: "500g",
-    VALIDADE: "12 meses",
-    DUN: "DUN002",
-    EMBALAGEM: "PACOTE",
-    CLASSIFICACAO_FISCAL: "2106.90.30",
-    DIMENSOES_EMB: "15×25×10 cm",
-    CAIXA_EMBARQUE: "25×25 cm",
-    QUANT_POR_CAIXA: 10,
-    CAIXA_POR_PALLET: 100,
-  }
-);
-
-const produtos = [produto1, produto2]; // Cada produto será um card
-
-const categorias = ["TODAS", "PROTEÍNA", "OUTRA CATEGORIA"]; // Definindo as categorias
+import { useState, useEffect } from "react";
+import axios from "axios"; // Importa axios para fazer requisições HTTP
 
 export default function Carousel() {
-  const [currentImages, setCurrentImages] = useState(
-    Array(produtos.length).fill(0)
-  ); // Índices das imagens atuais para cada produto
-  const [selectedImage, setSelectedImage] = useState(null); // Estado para imagem em destaque
-  const [selectedCategory, setSelectedCategory] = useState("TODAS"); // Categoria selecionada
-  const [searchText, setSearchText] = useState(""); // Estado para armazenar o texto de busca
+  const [produtos, setProdutos] = useState([]); // Estado para armazenar produtos vindos do backend
+  const [currentImages, setCurrentImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("TODAS");
+  const [searchText, setSearchText] = useState("");
 
-  // Função para filtrar produtos por categoria e por texto
+  // Faz a requisição para buscar produtos quando o componente é montado
+  useEffect(() => {
+    const fetchProdutos = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/produtos"); // URL do seu backend
+        setProdutos(response.data); // Armazena os produtos no estado
+        setCurrentImages(Array(response.data.length).fill(0)); // Define o estado inicial das imagens
+      } catch (error) {
+        console.error("Erro ao buscar produtos", error);
+      }
+    };
+
+    fetchProdutos();
+  }, []);
+
+  // Filtra produtos por categoria e texto de busca
   const filteredProducts = produtos.filter((produto) => {
     const matchesCategory =
-      selectedCategory === "TODAS" ||
-      produto.info.categoria === selectedCategory;
+      selectedCategory === "TODAS" || produto.categoria === selectedCategory;
+
+    const normalizedSearchText = searchText
+      .normalize("NFD") // Normaliza para a forma de decomposição
+      .replace(/[\u0300-\u036f]/g, "") // Remove os acentos
+      .toLowerCase(); // Converte para minúsculas
+
+    const normalizedNome = produto.nome
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    const normalizedCategoria = produto.categoria
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
     const matchesSearchText =
-      produto.nome.toLowerCase().includes(searchText.toLowerCase()) ||
-      produto.info.categoria.toLowerCase().includes(searchText.toLowerCase());
+      normalizedNome.includes(normalizedSearchText) ||
+      normalizedCategoria.includes(normalizedSearchText);
 
     return matchesCategory && matchesSearchText;
   });
@@ -79,7 +55,10 @@ export default function Carousel() {
   const handleNext = (index) => {
     setCurrentImages((prev) => {
       const newImages = [...prev];
-      newImages[index] = (newImages[index] + 1) % produtos[index].imgs.length; // Avança a imagem do produto
+      if (produtos[index]?.imgs?.length) {
+        // Verifica se imgs existe e tem elementos
+        newImages[index] = (newImages[index] + 1) % produtos[index].imgs.length;
+      }
       return newImages;
     });
   };
@@ -87,38 +66,43 @@ export default function Carousel() {
   const handlePrev = (index) => {
     setCurrentImages((prev) => {
       const newImages = [...prev];
-      newImages[index] =
-        (newImages[index] - 1 + produtos[index].imgs.length) %
-        produtos[index].imgs.length; // Retorna a imagem do produto
+      if (produtos[index]?.imgs?.length) {
+        // Verifica se imgs existe e tem elementos
+        newImages[index] =
+          (newImages[index] - 1 + produtos[index].imgs.length) %
+          produtos[index].imgs.length;
+      }
       return newImages;
     });
   };
 
   const handleImageClick = (img) => {
-    setSelectedImage(img); // Define a imagem selecionada
+    setSelectedImage(img);
   };
 
   const handleCloseModal = () => {
-    setSelectedImage(null); // Fecha o modal
+    setSelectedImage(null);
   };
 
   return (
     <div>
       {/* Filtro de categoria */}
       <div className="mb-4">
-        <span className="font-bold ">Filtrar por categoria:</span>
+        <span className="font-bold">Filtrar por categoria:</span>
         <div className="flex space-x-2 mt-2">
-          {categorias.map((categoria) => (
-            <button
-              key={categoria}
-              className={` text-black p-2 rounded ${
-                selectedCategory === categoria ? "bg-gray-300" : "bg-gray-200"
-              }`}
-              onClick={() => setSelectedCategory(categoria)}
-            >
-              {categoria}
-            </button>
-          ))}
+          {["TODAS", ...new Set(produtos.map((p) => p.categoria))].map(
+            (categoria) => (
+              <button
+                key={categoria}
+                className={`text-black p-2 rounded ${
+                  selectedCategory === categoria ? "bg-gray-300" : "bg-gray-200"
+                }`}
+                onClick={() => setSelectedCategory(categoria)}
+              >
+                {categoria}
+              </button>
+            )
+          )}
         </div>
       </div>
 
@@ -147,12 +131,20 @@ export default function Carousel() {
                 ←
               </button>
               <img
-                className="w-56 h-56 object-contain" // Tamanho aumentado da imagem
-                src={produto.imgs[currentImages[index]]}
-                alt={produto.nome}
+                className="w-56 h-56 object-contain"
+                src={
+                  produto.imgs &&
+                  produto.imgs.length > 0 &&
+                  currentImages[index] !== undefined
+                    ? produto.imgs[currentImages[index]]
+                    : "default-image.jpg" // Imagem padrão
+                }
+                alt={produto.nome || "Imagem do Produto"}
                 onClick={() =>
-                  handleImageClick(produto.imgs[currentImages[index]])
-                } // Ação ao clicar na imagem
+                  currentImages[index] !== undefined && produto.imgs?.length
+                    ? handleImageClick(produto.imgs[currentImages[index]])
+                    : null
+                }
               />
               <button
                 onClick={() => handleNext(index)}
@@ -165,61 +157,54 @@ export default function Carousel() {
               <h2 className="produto__nome font-bold text-black">
                 {produto.nome}
               </h2>
-              <div className="border-b-2 border-gray-300 my-2"></div>{" "}
-              {/* Borda abaixo do nome */}
+              <div className="border-b-2 border-gray-300 my-2"></div>
               <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="text-black">Categoria: {produto.categoria}</div>
+                <div className="text-black">EAN: {produto.EAN}</div>
+                <div className="text-black">CEST: {produto.CEST}</div>
+                <div className="text-black">PESO: {produto.PESO}</div>
+                <div className="text-black">VALIDADE: {produto.VALIDADE}</div>
+                <div className="text-black">DUN: {produto.DUN}</div>
+                <div className="text-black">EMBALAGEM: {produto.EMBALAGEM}</div>
                 <div className="text-black">
-                  Categoria: {produto.info.categoria}
-                </div>
-                <div className="text-black">EAN: {produto.info.EAN}</div>
-                <div className="text-black">CEST: {produto.info.CEST}</div>
-                <div className="text-black">PESO: {produto.info.PESO}</div>
-                <div className="text-black">
-                  VALIDADE: {produto.info.VALIDADE}
-                </div>
-                <div className="text-black">DUN: {produto.info.DUN}</div>
-                <div className="text-black">
-                  EMBALAGEM: {produto.info.EMBALAGEM}
+                  CLASSIF. FISCAL: {produto.CLASSIFICACAO_FISCAL}
                 </div>
                 <div className="text-black">
-                  CLASSIF. FISCAL: {produto.info.CLASSIFICACAO_FISCAL}
+                  DIMENSÕES DA EMB.: {produto.DIMENSOES_EMB}
                 </div>
                 <div className="text-black">
-                  DIMENSÕES DA EMB.: {produto.info.DIMENSOES_EMB}
+                  CAIXA DE EMBARQUE: {produto.CAIXA_EMBARQUE}
                 </div>
                 <div className="text-black">
-                  CAIXA DE EMBARQUE: {produto.info.CAIXA_EMBARQUE}
+                  QUANT. POR CAIXA: {produto.QUANT_POR_CAIXA}
                 </div>
                 <div className="text-black">
-                  QUANT. POR CAIXA: {produto.info.QUANT_POR_CAIXA}
-                </div>
-                <div className="text-black">
-                  CAIXA POR PALLET: {produto.info.CAIXA_POR_PALLET}
+                  CAIXA POR PALLET: {produto.CAIXA_POR_PALLET}
                 </div>
               </div>
             </div>
           </div>
         ))}
-      </div>
 
-      {/* Modal para imagem em destaque */}
-      {selectedImage && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="relative">
-            <img
-              src={selectedImage}
-              alt="Imagem em destaque"
-              className="max-w-full max-h-full"
-            />
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-2 right-2 text-white bg-red-600 rounded-full p-2"
-            >
-              ✖
-            </button>
+        {/* Modal para imagem em destaque */}
+        {selectedImage && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+            <div className="relative">
+              <img
+                src={selectedImage}
+                alt="Imagem em destaque"
+                className="max-w-full max-h-full"
+              />
+              <button
+                onClick={handleCloseModal}
+                className="absolute top-2 right-2 text-white bg-red-600 rounded-full p-2"
+              >
+                ✖
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
